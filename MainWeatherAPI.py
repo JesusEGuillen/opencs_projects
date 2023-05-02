@@ -1,70 +1,69 @@
-# Import necessary libraries
-import numpy as np
-import cv2
+import requests
+import json
+import tkinter as tk
+from tkinter import ttk
 
-# Initialize video capture object and face/eye cascade classifiers
-cap = cv2.VideoCapture(0)
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+api_key = "0feb86b321c3d721ffef88cee4acf9e5"
+base_url = "http://api.openweathermap.org/data/2.5/weather?"
 
-# Define font and scale for labeling
-font = cv2.FONT_HERSHEY_SIMPLEX
-font_scale = 1
+# Function to get weather information
+def get_weather():
+    city_name = city_entry.get()
+    complete_url = base_url + "appid=" + api_key + "&q=" + city_name
+    response = requests.get(complete_url)
+    x = response.json()
 
-# Initialize face and eye counters
-face_counter = 0
-eye_counter = 0
+    if x["cod"] != "404":
+        y = x["main"]
+        current_temperature = int((y["temp"] - 273.15) * 1.8 + 32)
+        current_pressure = y["pressure"]
+        current_humidity = y["humidity"]
+        current_max = int((y["temp_max"] - 273.15) * 1.8 + 32)
+        current_low = int((y["temp_min"] - 273.15) * 1.8 + 32)
+        z = x["weather"]
+        weather_description = z[0]["description"]
 
-# Loop over video frames until 'q' key is pressed
-while True:
-    # Capture video frame
-    ret, frame = cap.read()
+        # Clear the weather label
+        weather_label.config(text="")
 
-    # Convert video frame to grayscale
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # Display the weather information
+        weather_label.config(text="\n The weather in " + str(city_name) + " looks like" +
+                                    "\n Temperature (in Fahrenheit unit): " + str(current_temperature) +
+                                    "\n High in temperature today (Fahrenheit): " + str(current_max) +
+                                    "\n Low in temperature today (Fahrenheit): " + str(current_low) +
+                                    "\n Humidity (in percentage): " + str(current_humidity) + "%" +
+                                    "\n Today in " + str(city_name) + " looks like: " + str(weather_description) + "\n")
+    else:
+        # Clear the weather label and display error message
+        weather_label.config(text="")
+        weather_label.config(text="City Not Found")
 
-    # Detect faces in grayscale frame
-    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+# Create a window
+window = tk.Tk()
+window.title("Weather App")
+window.geometry("750x500")
 
-    # Update face counter
-    face_counter = len(faces)
+# Create a style object
+style = ttk.Style()
+style.theme_use('default')
+style.configure("TLabel", font=("Helvetica", 34), padding=10)
+style.configure("TEntry", font=("Helvetica", 34))
 
-    # Loop over detected faces
-    for (x, y, w, h) in faces:
-        # Draw rectangle around face on original color frame
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 5)
-        # Add label for "face"
-        cv2.putText(frame, 'face', (x, y - 10), font, font_scale, (255, 0, 0), 2)
+# Create a label for the city entry
+city_label = ttk.Label(window, text="Enter city name: ")
+city_label.pack()
 
-        # Extract region of interest (ROI) in grayscale and color
-        roi_gray = gray[y:y+w, x:x+w]
-        roi_color = frame[y:y+h, x:x+w]
+# Create an entry for the city name
+city_entry = ttk.Entry(window)
+city_entry.pack()
 
-        # Detect eyes in ROI grayscale
-        eyes = eye_cascade.detectMultiScale(roi_gray, 1.3, 5)
+# Create a button to get the weather information
+get_weather_button = ttk.Button(window, text="Get Weather", command=get_weather)
+get_weather_button.pack()
 
-        # Update eye counter
-        eye_counter = len(eyes)
+# Create a label for the weather information
+weather_label = ttk.Label(window)
+weather_label.pack()
 
-        # Loop over detected eyes
-        for (ex, ey, ew, eh) in eyes:
-            # Draw rectangle around eye on color ROI frame
-            cv2.rectangle(roi_color, (ex, ey), (ex + ew, ey + eh), (0, 255, 0), 5)
-            # Add label for "eye"
-            cv2.putText(roi_color, 'eye', (ex, ey - 10), font, font_scale, (0, 255, 0), 2)
-
-    # Add text box for face and eye counters
-    cv2.rectangle(frame, (10, 10), (200, 100), (255, 255, 255), -1)
-    cv2.putText(frame, 'Faces: {}'.format(face_counter), (20, 40), font, font_scale, (0, 0, 0), 2)
-    cv2.putText(frame, 'Eyes: {}'.format(eye_counter), (20, 80), font, font_scale, (0, 0, 0), 2)
-
-    # Show video frame with detected faces/eyes
-    cv2.imshow('frame', frame)
-
-    # Break loop if 'q' key is pressed
-    if cv2.waitKey(1) == ord('q'):
-        break
-
-# Release video capture object and close all windows
-cap.release()
-cv2.destroyAllWindows()
+# Run the window
+window.mainloop()
